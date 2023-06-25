@@ -1,0 +1,21 @@
+{
+    "name": "nece001/php-brawl-pns-axb-huawei",
+    "description": "php 号码隐私保护（AXB）基础服务项目（华为）",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Nece\\Brawl\\Pns\\Axb\\Huawei\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "nece001",
+            "email": "nece001@163.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.2",
+        "nece001/php-brawl-pns-axb":"^1.0"
+    }
+}
