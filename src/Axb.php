@@ -5,8 +5,8 @@ namespace Nece\Brawl\Pns\Axb\Huawei;
 use GuzzleHttp\Client;
 use Nece\Brawl\ClientAbstract;
 use Nece\Brawl\Pns\Axb\AxbInterface;
-use Nece\Brawl\Pns\Axb\BindParameter;
 use Nece\Brawl\Pns\Axb\BindResult;
+use Nece\Brawl\Pns\PhoneNumber;
 use Nece\Brawl\Pns\PnsException;
 use Throwable;
 
@@ -61,20 +61,23 @@ class Axb extends ClientAbstract implements AxbInterface
 
     /**
      * 绑定
+     * 文档：https://support.huaweicloud.com/api-PrivateNumber/privatenumber_02_0002.html
      *
      * @Author nece001@163.com
-     * @DateTime 2023-06-25
+     * @DateTime 2023-06-28
      *
-     * @param BindParameter $bindParameter
+     * @param PhoneNumber $a
+     * @param PhoneNumber $b
+     * @param array $custom_data
      *
      * @return BindResult
      */
-    public function bind(BindParameter $bindParameter): BindResult
+    public function bind(PhoneNumber $a, PhoneNumber $b, array $custom_data = array()): BindResult
     {
         // 请求Body
         $data = array(
-            'callerNum' => $this->buildNumber($bindParameter->getPhoneA()),
-            'calleeNum' => $this->buildNumber($bindParameter->getPhoneB()),
+            'callerNum' => $a->toNumber(),
+            'calleeNum' => $b->toNumber()
         );
 
         $relationNum = $this->getConfigValue('relationNum', '');
@@ -96,7 +99,11 @@ class Axb extends ClientAbstract implements AxbInterface
 
         $callDirection = $this->getConfigValue('callDirection');
         if (!is_null($callDirection)) {
-            $data['callDirection'] = $callDirection;
+            $data['callDirection'] = intval($callDirection);
+        }
+
+        if ($custom_data) {
+            $data['userData'] = json_encode($custom_data, JSON_UNESCAPED_UNICODE);
         }
 
         $uri = '/rest/caas/relationnumber/partners/v1.0';
@@ -124,21 +131,22 @@ class Axb extends ClientAbstract implements AxbInterface
 
     /**
      * 解绑
+     * 文档：https://support.huaweicloud.com/api-PrivateNumber/privatenumber_02_0003.html
      *
      * @Author nece001@163.com
      * @DateTime 2023-06-25
      *
      * @param string $bind_id 绑定ID（传空解绑所有与x号码全部现有绑定）
      *
-     * @return void
+     * @return bool
      */
-    public function unbind(string $bind_id)
+    public function unbind(string $bind_id): bool
     {
         // 请求Body
         if ($bind_id) {
             $data = array('subscriptionId' => $bind_id);
         } else {
-            $data = array('relationNum' => $this->buildNumber($this->getConfigValue('relationNum', '')));
+            $data = array('relationNum' => $this->getConfigValue('relationNum', ''));
         }
 
         $uri = '/rest/caas/relationnumber/partners/v1.0';
@@ -146,22 +154,10 @@ class Axb extends ClientAbstract implements AxbInterface
         try {
             $options = $this->buildRequestOptions($data);
             $this->getClient()->delete($uri, $options);
+            return true;
         } catch (Throwable $e) {
+            throw new PnsException('华为云AXB绑定失败：' . $e->getMessage(), $e->getCode());
         }
-    }
-
-    /**
-     * 构建号码格式
-     *
-     * @author gjw
-     * @created 2022-07-23 15:02:59
-     *
-     * @param string $mobile
-     * @return string
-     */
-    protected function buildNumber($mobile)
-    {
-        return '+86' . $mobile;
     }
 
     /**
@@ -176,10 +172,26 @@ class Axb extends ClientAbstract implements AxbInterface
      */
     protected function buildRequestOptions(array $data)
     {
-        return array(
+        $data = array(
             'headers' => $this->buildWsseHeader(),
             'json' => $data
         );
+
+        $proxy = array();
+        $http_proxy = $this->getConfigValue('http_proxy');
+        $https_proxy = $this->getConfigValue('https_proxy');
+        if ($http_proxy) {
+            $proxy['http'] = $http_proxy;
+        }
+        if ($https_proxy) {
+            $proxy['https'] = $http_proxy;
+        }
+
+        if ($proxy) {
+            $data['proxy'] = $proxy;
+        }
+
+        return $data;
     }
 
     /**
