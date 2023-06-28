@@ -112,6 +112,7 @@ class Axb extends ClientAbstract implements AxbInterface
             $response = $this->getClient()->post($uri, $options);
             $json = $response->getBody()->getContents();
         } catch (Throwable $e) {
+            throw new PnsException('华AXB绑定异常：'.$e->getMessage(), $e->getCode());
         }
 
         $data = json_decode($json, JSON_UNESCAPED_UNICODE);
